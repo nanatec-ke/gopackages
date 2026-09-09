@@ -612,7 +612,7 @@ func (c *client) GetMemberIntermediaryStock(memberIntermediaryID int) (*StockRes
 func (c *client) GetIntermediaryStock(iraNumbers []string) (*StockResponse, error) {
 	var resp StockResponse
 	reqBody := map[string]interface{}{"IntermediaryIRANumbers": iraNumbers}
-	err := c.makeAPICall(http.MethodPost, "/v4/Integration/IntermediaryStock", reqBody, &resp, ErrIntermediaryStock)
+	err := c.makeAPICall(http.MethodPost, "/v6/Integration/IntermediaryStock", reqBody, &resp, ErrIntermediaryStock)
 	if err != nil {
 		return nil, err
 	}
