@@ -593,8 +593,10 @@ func (c *client) GetMemberCompanyStock(memberCompanyID int) (*StockResponse, err
 
 func (c *client) GetMemberIntermediaryStock(memberIntermediaryID int) (*StockResponse, error) {
 	var resp StockResponse
-	endpoint := fmt.Sprintf("/V6/Integration/IntermediaryStock?MemberIntermediaryId=%d", memberIntermediaryID)
-	err := c.makeAPICall(http.MethodGet, endpoint, nil, &resp, ErrIntermediaryStock)
+	// DMVIC 4.8: POST /v6/IntermediaryIntegration/MemberCompanyStock with the
+	// member id in the body (params are case-insensitive per the spec).
+	reqBody := map[string]interface{}{"MemberCompanyId": memberIntermediaryID}
+	err := c.makeAPICall(http.MethodPost, "/v6/IntermediaryIntegration/MemberCompanyStock", reqBody, &resp, ErrIntermediaryStock)
 	if err != nil {
 		return nil, err
 	}
