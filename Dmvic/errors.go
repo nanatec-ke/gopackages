@@ -38,7 +38,7 @@ const (
 	ErrValidateInsurance       = 4000 // Insurance validation operation failed
 	ErrCancelCertificate       = 5000 // Certificate cancellation operation failed
 	ErrMemberCompanyStock      = 6000 // Member company stock retrieval failed
-	ErrIntermediaryStock	   =6500 //Intermediary company stock retrieval failed	 
+	ErrIntermediaryStock       = 6500 //Intermediary company stock retrieval failed
 	ErrIssuanceTypeA           = 7000 // Type A certificate issuance failed
 	ErrIssuanceTypeB           = 7100 // Type B certificate issuance failed
 	ErrIssuanceTypeC           = 7200 // Type C certificate issuance failed
