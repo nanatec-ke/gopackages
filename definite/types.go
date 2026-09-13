@@ -204,7 +204,7 @@ type CheckPolicyResponse = Response[*PolicyRecord]
 // present even when they are 0.
 type NewProposalRequest struct {
 	Client           int64     `json:"Client"` // Client record ID — NOT the national ID number
-	Agent            int64     `json:"agent"`  // Intermediary record ID
+	Agent            string     `json:"agent"`  // Intermediary record ID
 	CommencementDate Timestamp `json:"CommencementDate"`
 	PaymentInterval  string    `json:"PaymentInterval"` // One of the PaymentInterval constants
 	Product          int64     `json:"Product"`
