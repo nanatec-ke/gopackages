@@ -101,7 +101,7 @@ func ValidateNewProposalRequest(req *NewProposalRequest) error {
 	if req.Client <= 0 {
 		return errors.New("Client must be a positive client record ID")
 	}
-	if req.Agent <= 0 {
+	if req.Agent == "" || strings.TrimSpace(req.Agent) == "" {
 		return errors.New("agent must be a positive intermediary record ID")
 	}
 	if req.CommencementDate.IsZero() {
