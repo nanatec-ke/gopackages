@@ -48,6 +48,7 @@ const (
 	ErrNewProposal          = 8000
 	ErrInitiatePayment      = 8100
 	ErrGenerateCertificate  = 8200
+	ErrCheckWalletBalance   = 8300
 
 	// Transport and parsing errors (9000-9099)
 	ErrEmptyResponse   = 9000
