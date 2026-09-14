@@ -42,8 +42,9 @@ const (
 	endpointRegisterIntermediary = "/api/v1/registerIntermediary" // POST
 	endpointCheckPolicy          = "/api/v1/checkPolicy"          // GET
 	endpointNewProposal          = "/api/v1/newProposal"          // POST
-	endpointInitiatePayment      = "/api/v1/initiatePayment"      // POST
-	endpointGenerateCertificate  = "/api/v1/generateCertificate"  // POST
+	endpointInitiatePayment      = "/api/v1/initiatePayment"
+	endpointCheckWalletBalance   = "/api/v1/checkWalletBalance"  // POST
+	endpointGenerateCertificate  = "/api/v1/generateCertificate" // POST
 )
 
 // Base URLs for each environment.
