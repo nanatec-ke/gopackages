@@ -43,7 +43,7 @@ const (
 	endpointCheckPolicy          = "/api/v1/checkPolicy"          // GET
 	endpointNewProposal          = "/api/v1/newProposal"          // POST
 	endpointInitiatePayment      = "/api/v1/initiatePayment"
-	endpointCheckWalletBalance   = "/api/v1/checkWalletBalance"  // POST
+	endpointCheckWalletBalance   = "/api/v1/checkWalletBalance"  // GET
 	endpointGenerateCertificate  = "/api/v1/generateCertificate" // POST
 )
 
