@@ -190,17 +190,27 @@ func (c *Client) InitiatePayment(ctx context.Context, req *InitiatePaymentReques
 }
 
 // CheckWalletBalance returns the wallet balance for an intermediary, keyed by
-// its agent code. A failed lookup returns an error tagged ErrCheckWalletBalance.
+// its agent code. The endpoint answers with a bare array rather than the
+// standard envelope; its first record becomes Data. A failed lookup, or one
+// that returns no record, is an error tagged ErrCheckWalletBalance.
 func (c *Client) CheckWalletBalance(ctx context.Context, req *WalletBalanceRequest) (*CheckWalletBalanceResponse, error) {
 	const op = "CheckWalletBalance"
 	if err := ValidateCheckWalletBalanceRequest(req); err != nil {
 		return nil, newInputError(op, err)
 	}
-	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointCheckWalletBalance, body: req})
+	body, err := c.do(ctx, request{op: op, method: http.MethodGet, path: endpointCheckWalletBalance,
+		query: url.Values{"agentCode": {strconv.FormatInt(req.AgentCode, 10)}}})
 	if err != nil {
 		return nil, err
 	}
-	return decodeEnvelope[*WalletBalanceRecord](op, ErrCheckWalletBalance, "wallet balance check failed", body)
+	records, err := decodeArray[WalletBalanceRecord](op, ErrCheckWalletBalance, "wallet balance check failed", body)
+	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, newAPIError(op, ErrCheckWalletBalance, "no wallet balance returned for the agent code", "", body)
+	}
+	return &CheckWalletBalanceResponse{Data: &records[0], Raw: body}, nil
 }
 
 // GenerateCertificate generates the DMVIC certificate for a paid proposal.
