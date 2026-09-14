@@ -224,6 +224,28 @@ func decodeBoolEnvelope(op string, code int, fallback string, body []byte, out a
 	return nil
 }
 
+// decodeArray decodes a response that is a bare JSON array — checkWalletBalance
+// — rather than the standard envelope. A JSON object in its place is read as the
+// envelope, so a {"status": "error"} body still surfaces as an API error.
+func decodeArray[T any](op string, code int, fallback string, body []byte) ([]T, error) {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return nil, nil
+	}
+	if trimmed[0] != '[' {
+		env, err := decodeEnvelope[[]T](op, code, fallback, body)
+		if err != nil {
+			return nil, err
+		}
+		return env.Data, nil
+	}
+	var out []T
+	if err := json.Unmarshal(trimmed, &out); err != nil {
+		return nil, decodeError(op, body, err)
+	}
+	return out, nil
+}
+
 // decodeError distinguishes a body that is not JSON at all from JSON whose
 // structure does not match the expected type. Both carry the raw body.
 func decodeError(op string, body []byte, err error) *ClientError {
