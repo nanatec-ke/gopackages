@@ -23,6 +23,7 @@ type API interface {
 	CreateProposal(ctx context.Context, req *NewProposalRequest) (*NewProposalResponse, error)
 	InitiatePayment(ctx context.Context, req *InitiatePaymentRequest) (*InitiatePaymentResponse, error)
 	CheckWalletBalance(ctx context.Context, req *WalletBalanceRequest) (*CheckWalletBalanceResponse, error)
+	TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*TopUpWalletResponse, error)
 	GenerateCertificate(ctx context.Context, req *GenerateCertificateRequest) (*GenerateCertificateResponse, error)
 	ClearCache()
 }
@@ -211,6 +212,38 @@ func (c *Client) CheckWalletBalance(ctx context.Context, req *WalletBalanceReque
 		return nil, newAPIError(op, ErrCheckWalletBalance, "no wallet balance returned for the agent code", "", body)
 	}
 	return &CheckWalletBalanceResponse{Data: &records[0], Raw: body}, nil
+}
+
+// TopUpWallet credits an intermediary's wallet by Amount, typically after an
+// M-Pesa payment made from PhoneNumber. PhoneNumber is normalised to 2547XXXXXXXX
+// before sending; req is not modified. A refused top-up returns an error tagged
+// ErrTopUpWallet.
+//
+// It moves money, so it is sent exactly once and never retried. A transport
+// error or timeout leaves the outcome unknown — Definite may already have
+// credited the wallet — so confirm with CheckWalletBalance before trying again,
+// or the wallet can be credited twice.
+func (c *Client) TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*TopUpWalletResponse, error) {
+	const op = "TopUpWallet"
+	if err := ValidateTopUpWalletRequest(req); err != nil {
+		return nil, newInputError(op, err)
+	}
+	payload := *req
+	phone, err := NormalizeKenyanPhone(payload.PhoneNumber)
+	if err != nil {
+		return nil, newInputError(op, err)
+	}
+	payload.PhoneNumber = phone
+	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointTopUpWallet, body: &payload})
+	if err != nil {
+		return nil, err
+	}
+	out := &TopUpWalletResponse{}
+	if err := decodeBoolEnvelope(op, ErrTopUpWallet, "wallet top-up failed", body, out); err != nil {
+		return nil, err
+	}
+	out.Raw = body
+	return out, nil
 }
 
 // GenerateCertificate generates the DMVIC certificate for a paid proposal.
