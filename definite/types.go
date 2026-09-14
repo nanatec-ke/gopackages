@@ -204,7 +204,7 @@ type CheckPolicyResponse = Response[*PolicyRecord]
 // present even when they are 0.
 type NewProposalRequest struct {
 	Client           int64     `json:"Client"` // Client record ID — NOT the national ID number
-	Agent            string     `json:"agent"`  // Intermediary record ID
+	Agent            string    `json:"agent"`  // Intermediary record ID
 	CommencementDate Timestamp `json:"CommencementDate"`
 	PaymentInterval  string    `json:"PaymentInterval"` // One of the PaymentInterval constants
 	Product          int64     `json:"Product"`
@@ -220,6 +220,10 @@ type NewProposalRequest struct {
 	EngineRating     int       `json:"EngineRating"` // Engine capacity in cc
 	ClientID         string    `json:"ClientID"`     // Client's national ID number
 	Tonnage          float64   `json:"Tonnage"`
+}
+
+type WalletBalanceRequest struct {
+	AgentCode int64 `json:"agent_code"` // Client record ID — NOT the national ID number
 }
 
 // ProposalDetails is the proposal record returned by newProposal. Every later
@@ -259,12 +263,12 @@ func (r *NewProposalResponse) Succeeded() bool { return r.Success == nil || bool
 
 // InitiatePaymentRequest is the payload for POST /api/v1/initiatePayment.
 type InitiatePaymentRequest struct {
-	InsuredItem      int64     `json:"InsuredItem"` // From ProposalDetails.InsuredItem
-	
-	Proposal         int64     `json:"Proposal"`    // From ProposalDetails.OID
-	PhoneNumber      string    `json:"PhoneNumber"` // 2547XXXXXXXX — see NormalizeKenyanPhone
-	DocumentNumber  string    `json:"DocumentNumber,omitempty"` // From ProposalDetails.DocumentNumber
-	NoteOID         int64   `json:"noteOID,omitempty"` // From ProposalDetails.Note
+	InsuredItem int64 `json:"InsuredItem"` // From ProposalDetails.InsuredItem
+
+	Proposal       int64  `json:"Proposal"`                 // From ProposalDetails.OID
+	PhoneNumber    string `json:"PhoneNumber"`              // 2547XXXXXXXX — see NormalizeKenyanPhone
+	DocumentNumber string `json:"DocumentNumber,omitempty"` // From ProposalDetails.DocumentNumber
+	NoteOID        int64  `json:"noteOID,omitempty"`        // From ProposalDetails.Note
 	// APIUser defaults to Config.APIUser, then Credentials.Username.
 	APIUser string `json:"APIUser,omitempty"`
 
@@ -273,7 +277,7 @@ type InitiatePaymentRequest struct {
 	MpesaTransaction string  `json:"MpesaTransaction,omitempty"`
 	AmountPaid       float64 `json:"AmountPaid"`
 	Note             string  `json:"note,omitempty"` // Free text stored against the payment
-	
+
 }
 
 // PaymentRecord is returned by initiatePayment.
@@ -287,6 +291,13 @@ type PaymentRecord struct {
 	PolicyNumber  FlexString `json:"policyNumber,omitempty"`
 	Status        FlexString `json:"status,omitempty"`
 }
+
+type WalletBalanceRecord struct {
+	Balance FlexFloat `json:"balance,omitempty"`
+}
+
+// CheckWalletBalanceResponse is returned by Client.CheckWalletBalance.
+type CheckWalletBalanceResponse = Response[*WalletBalanceRecord]
 
 // InitiatePaymentResponse is returned by Client.InitiatePayment.
 type InitiatePaymentResponse = Response[*PaymentRecord]
