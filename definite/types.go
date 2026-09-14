@@ -222,8 +222,9 @@ type NewProposalRequest struct {
 	Tonnage          float64   `json:"Tonnage"`
 }
 
+// WalletBalanceRequest identifies the wallet for GET /api/v1/checkWalletBalance.
 type WalletBalanceRequest struct {
-	AgentCode int64 `json:"agentCode"` // Client record ID — NOT the national ID number
+	AgentCode int64 `json:"agentCode"` // Intermediary record ID, sent as the agentCode query parameter
 }
 
 // ProposalDetails is the proposal record returned by newProposal. Every later
@@ -293,7 +294,7 @@ type PaymentRecord struct {
 }
 
 type WalletBalanceRecord struct {
-	Balance FlexFloat `json:"balance,omitempty"`
+	Balance FlexFloat `json:"Balance,omitempty"`
 }
 
 // CheckWalletBalanceResponse is returned by Client.CheckWalletBalance.
