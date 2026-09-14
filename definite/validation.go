@@ -137,6 +137,17 @@ func ValidateNewProposalRequest(req *NewProposalRequest) error {
 	return nil
 }
 
+// ValidateCheckWalletBalanceRequest validates a checkWalletBalance payload.
+func ValidateCheckWalletBalanceRequest(req *WalletBalanceRequest) error {
+	if req == nil {
+		return errors.New("wallet balance request is required")
+	}
+	if req.AgentCode <= 0 {
+		return errors.New("AgentCode must be a positive intermediary record ID")
+	}
+	return nil
+}
+
 // ValidateInitiatePaymentRequest validates an initiatePayment payload.
 func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	if req == nil {
@@ -148,7 +159,7 @@ func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	if req.InsuredItem <= 0 {
 		return errors.New("InsuredItem must be a positive insured item record ID")
 	}
-	
+
 	if blank(req.PhoneNumber) {
 		return errors.New("PhoneNumber is required")
 	}
