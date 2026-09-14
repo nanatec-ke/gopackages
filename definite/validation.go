@@ -148,6 +148,26 @@ func ValidateCheckWalletBalanceRequest(req *WalletBalanceRequest) error {
 	return nil
 }
 
+// ValidateTopUpWalletRequest validates a topUpWallet payload.
+func ValidateTopUpWalletRequest(req *TopUpWalletRequest) error {
+	if req == nil {
+		return errors.New("top up wallet request is required")
+	}
+	if req.AgentCode <= 0 {
+		return errors.New("AgentCode must be a positive intermediary record ID")
+	}
+	if !nonNegative(req.Amount) || req.Amount == 0 {
+		return errors.New("Amount must be greater than zero")
+	}
+	if blank(req.PhoneNumber) {
+		return errors.New("PhoneNumber is required")
+	}
+	if _, err := NormalizeKenyanPhone(req.PhoneNumber); err != nil {
+		return fmt.Errorf("PhoneNumber is not a Kenyan phone number: %q", req.PhoneNumber)
+	}
+	return nil
+}
+
 // ValidateInitiatePaymentRequest validates an initiatePayment payload.
 func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	if req == nil {
