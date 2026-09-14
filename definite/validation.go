@@ -148,12 +148,7 @@ func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	if req.InsuredItem <= 0 {
 		return errors.New("InsuredItem must be a positive insured item record ID")
 	}
-	if req.CommencementDate.IsZero() {
-		return errors.New("CommencementDate is required")
-	}
-	if req.ExpiryDate.IsZero() {
-		return errors.New("ExpiryDate is required")
-	}
+	
 	if blank(req.PhoneNumber) {
 		return errors.New("PhoneNumber is required")
 	}
