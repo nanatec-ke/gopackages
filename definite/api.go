@@ -22,6 +22,7 @@ type API interface {
 	CheckPolicy(ctx context.Context, registration string) (*CheckPolicyResponse, error)
 	CreateProposal(ctx context.Context, req *NewProposalRequest) (*NewProposalResponse, error)
 	InitiatePayment(ctx context.Context, req *InitiatePaymentRequest) (*InitiatePaymentResponse, error)
+	CheckWalletBalance(ctx context.Context, req *WalletBalanceRequest) (*CheckWalletBalanceResponse, error)
 	GenerateCertificate(ctx context.Context, req *GenerateCertificateRequest) (*GenerateCertificateResponse, error)
 	ClearCache()
 }
@@ -186,6 +187,20 @@ func (c *Client) InitiatePayment(ctx context.Context, req *InitiatePaymentReques
 		return nil, err
 	}
 	return decodeEnvelope[*PaymentRecord](op, ErrInitiatePayment, "payment initiation failed", body)
+}
+
+// CheckWalletBalance returns the wallet balance for an intermediary, keyed by
+// its agent code. A failed lookup returns an error tagged ErrCheckWalletBalance.
+func (c *Client) CheckWalletBalance(ctx context.Context, req *WalletBalanceRequest) (*CheckWalletBalanceResponse, error) {
+	const op = "CheckWalletBalance"
+	if err := ValidateCheckWalletBalanceRequest(req); err != nil {
+		return nil, newInputError(op, err)
+	}
+	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointCheckWalletBalance, body: req})
+	if err != nil {
+		return nil, err
+	}
+	return decodeEnvelope[*WalletBalanceRecord](op, ErrCheckWalletBalance, "wallet balance check failed", body)
 }
 
 // GenerateCertificate generates the DMVIC certificate for a paid proposal.
