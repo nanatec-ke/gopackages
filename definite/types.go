@@ -223,7 +223,7 @@ type NewProposalRequest struct {
 }
 
 type WalletBalanceRequest struct {
-	AgentCode int64 `json:"agent_code"` // Client record ID — NOT the national ID number
+	AgentCode int64 `json:"agentCode"` // Client record ID — NOT the national ID number
 }
 
 // ProposalDetails is the proposal record returned by newProposal. Every later
