@@ -2,6 +2,8 @@ package definite
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -299,6 +301,46 @@ type WalletBalanceRecord struct {
 
 // CheckWalletBalanceResponse is returned by Client.CheckWalletBalance.
 type CheckWalletBalanceResponse = Response[*WalletBalanceRecord]
+
+// TopUpWalletRequest is the payload for POST /api/v1/topUpWallet, which credits an
+// intermediary's wallet — typically after an M-Pesa payment made from PhoneNumber.
+type TopUpWalletRequest struct {
+	AgentCode   int64   // Intermediary record ID, as for CheckWalletBalance
+	Amount      float64 // Amount to credit, in KES
+	PhoneNumber string  // Phone the M-Pesa payment came from; see NormalizeKenyanPhone
+}
+
+// MarshalJSON writes the documented body. PhoneNumber goes out as a JSON number —
+// {"AgentCode": 71702, "Amount": 10000, "PhoneNumber": 254713199322} — which is
+// how this endpoint documents it, unlike InitiatePayment, which takes a string.
+// It must already be normalised to digits; Client.TopUpWallet does that.
+func (r TopUpWalletRequest) MarshalJSON() ([]byte, error) {
+	phone, err := strconv.ParseInt(strings.TrimSpace(r.PhoneNumber), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("PhoneNumber %q is not a normalised phone number: %w", r.PhoneNumber, err)
+	}
+	return json.Marshal(struct {
+		AgentCode   int64   `json:"AgentCode"`
+		Amount      float64 `json:"Amount"`
+		PhoneNumber int64   `json:"PhoneNumber"`
+	}{r.AgentCode, r.Amount, phone})
+}
+
+// TopUpWalletResponse is returned by Client.TopUpWallet.
+//
+// Like newProposal, this endpoint reports its outcome with a boolean "success"
+// rather than the Response envelope. The first top-up for an agent also creates
+// its wallet ("Wallet created and topped up successfully").
+type TopUpWalletResponse struct {
+	Success    *FlexBool       `json:"success,omitempty"`
+	Message    FlexString      `json:"message,omitempty"`
+	NewBalance FlexFloat       `json:"newBalance,omitempty"` // Wallet balance after the credit
+	Raw        json.RawMessage `json:"-"`
+}
+
+// Succeeded reports whether the wallet was credited. An absent success field
+// counts as a success; only an explicit false is a failure.
+func (r *TopUpWalletResponse) Succeeded() bool { return r.Success == nil || bool(*r.Success) }
 
 // InitiatePaymentResponse is returned by Client.InitiatePayment.
 type InitiatePaymentResponse = Response[*PaymentRecord]
