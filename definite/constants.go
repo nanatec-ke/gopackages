@@ -33,19 +33,19 @@ const (
 
 // API endpoint paths, relative to the base URL. All require HTTP Basic authentication.
 const (
-	endpointCheckClient          = "/api/v1/checkClient"          // GET
-	endpointCreateClient         = "/api/v1/createClient"         // POST
-	endpointProducts             = "/api/v1/products"             // GET
-	endpointMakes                = "/api/v1/makes"                // GET
-	endpointCalculatePremium     = "/api/v1/calculatePremium"     // GET (query + body)
-	endpointCheckIntermediary    = "/api/v1/checkIntermediary"    // GET (query + optional body)
-	endpointRegisterIntermediary = "/api/v1/registerIntermediary" // POST
-	endpointCheckPolicy          = "/api/v1/checkPolicy"          // GET
-	endpointNewProposal          = "/api/v1/newProposal"          // POST
-	endpointInitiatePayment      = "/api/v1/initiatePayment"
-	endpointCheckWalletBalance   = "/api/v1/checkWalletBalance"  // GET
-	endpointTopUpWallet          = "/api/v1/topUpWallet"         // POST
-	endpointGenerateCertificate  = "/api/v1/generateCertificate" // POST
+	endpointCheckClient          = "checkClient"          // GET
+	endpointCreateClient         = "createClient"         // POST
+	endpointProducts             = "products"             // GET
+	endpointMakes                = "makes"                // GET
+	endpointCalculatePremium     = "calculatePremium"     // GET (query + body)
+	endpointCheckIntermediary    = "checkIntermediary"    // GET (query + optional body)
+	endpointRegisterIntermediary = "registerIntermediary" // POST
+	endpointCheckPolicy          = "checkPolicy"          // GET
+	endpointNewProposal          = "newProposal"          // POST
+	endpointInitiatePayment      = "initiatePayment"
+	endpointCheckWalletBalance   = "checkWalletBalance"  // GET
+	endpointTopUpWallet          = "topUpWallet"         // POST
+	endpointGenerateCertificate  = "generateCertificate" // POST
 )
 
 // Base URLs for each environment.
@@ -55,7 +55,7 @@ const (
 // and set Config.BaseURL if it differs.
 const (
 	BaseURLUAT        = "https://uat.definiteassurance.com"
-	BaseURLProduction = "https://api.definiteassurance.com"
+	BaseURLProduction = "https://digitalapi.definiteassurance.com"
 )
 
 // Defaults applied by NewClient when the corresponding Config field is zero.
