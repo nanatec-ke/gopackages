@@ -33,19 +33,19 @@ const (
 
 // API endpoint paths, relative to the base URL. All require HTTP Basic authentication.
 const (
-	endpointCheckClient          = "checkClient"          // GET
-	endpointCreateClient         = "createClient"         // POST
-	endpointProducts             = "products"             // GET
-	endpointMakes                = "makes"                // GET
-	endpointCalculatePremium     = "calculatePremium"     // GET (query + body)
-	endpointCheckIntermediary    = "checkIntermediary"    // GET (query + optional body)
-	endpointRegisterIntermediary = "registerIntermediary" // POST
-	endpointCheckPolicy          = "checkPolicy"          // GET
-	endpointNewProposal          = "newProposal"          // POST
-	endpointInitiatePayment      = "initiatePayment"
-	endpointCheckWalletBalance   = "checkWalletBalance"  // GET
-	endpointTopUpWallet          = "topUpWallet"         // POST
-	endpointGenerateCertificate  = "generateCertificate" // POST
+	endpointCheckClient          = "/checkClient"          // GET
+	endpointCreateClient         = "/createClient"         // POST
+	endpointProducts             = "/products"             // GET
+	endpointMakes                = "/makes"                // GET
+	endpointCalculatePremium     = "/calculatePremium"     // GET (query + body)
+	endpointCheckIntermediary    = "/checkIntermediary"    // GET (query + optional body)
+	endpointRegisterIntermediary = "/registerIntermediary" // POST
+	endpointCheckPolicy          = "/checkPolicy"          // GET
+	endpointNewProposal          = "/newProposal"          // POST
+	endpointInitiatePayment      = "/initiatePayment"
+	endpointCheckWalletBalance   = "/checkWalletBalance"  // GET
+	endpointTopUpWallet          = "/topUpWallet"         // POST
+	endpointGenerateCertificate  = "/generateCertificate" // POST
 )
 
 // Base URLs for each environment.
