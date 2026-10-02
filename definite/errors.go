@@ -50,6 +50,8 @@ const (
 	ErrGenerateCertificate  = 8200
 	ErrCheckWalletBalance   = 8300
 	ErrTopUpWallet          = 8400
+	ErrInitiateExtension    = 8500
+	ErrPayForExtension      = 8600
 
 	// Transport and parsing errors (9000-9099)
 	ErrEmptyResponse   = 9000
