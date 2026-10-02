@@ -46,6 +46,8 @@ const (
 	endpointCheckWalletBalance   = "/checkWalletBalance"  // GET
 	endpointTopUpWallet          = "/topUpWallet"         // POST
 	endpointGenerateCertificate  = "/generateCertificate" // POST
+	endpointInitiateExtension    = "/initiateExtension"   // POST
+	endpointPayForExtension      = "/payForExtension"     // POST
 )
 
 // Base URLs for each environment.
