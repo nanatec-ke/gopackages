@@ -349,6 +349,46 @@ type InitiatePaymentResponse = Response[*PaymentRecord]
 /*  Certificates                                                              */
 /* -------------------------------------------------------------------------- */
 
+// ExtensionRequest is the payload for both POST /api/v1/initiateExtension and
+// POST /api/v1/payForExtension, which take the same body.
+//
+// An extension renews an existing proposal for a further period: the proposal
+// is the one the policy was opened with, and CommencementDate is when the new
+// period starts — normally the day the current cover ends. The pair is how an
+// instalment plan is carried past its first period, each instalment producing
+// a new debit note to pay and certificate to issue.
+type ExtensionRequest struct {
+	Proposal         int64     `json:"proposal"` // Proposal ID — ProposalDetails.OID
+	CommencementDate Timestamp `json:"commencementDate"`
+	AgentCode        int64     `json:"agentCode"`       // Intermediary record ID
+	PaymentInterval  string    `json:"paymentInterval"` // One of the PaymentInterval constants
+}
+
+// ExtensionResponse is returned by Client.InitiateExtension and
+// Client.PayForExtension.
+//
+// Like newProposal, these endpoints report their outcome with a boolean
+// "success" and put the details at the top level rather than using Response.
+//
+// NoteOID is the new debit note: it is what GenerateCertificate must be given
+// to issue the certificate for the extended period. The note from the original
+// proposal certificates the original period only.
+type ExtensionResponse struct {
+	Success *FlexBool `json:"success,omitempty"`
+
+	// InitialCommencementDate is when the cover first began, not when this
+	// extension starts; ExpiryDate is when the extended cover ends.
+	InitialCommencementDate FlexString `json:"initialCommencementDate,omitempty"`
+	ExpiryDate              FlexString `json:"ExpiryDate,omitempty"`
+
+	ReferenceNote FlexString `json:"ReferenceNote,omitempty"` // e.g. EXT2026130553
+	NoteOID       FlexInt    `json:"noteOID,omitempty"`       // Debit note for this extension
+	AmountToPay   FlexFloat  `json:"AmountToPay,omitempty"`   // Premium due for the extension
+
+	Message FlexString      `json:"message,omitempty"`
+	Raw     json.RawMessage `json:"-"`
+}
+
 // GenerateCertificateRequest is the payload for POST /api/v1/generateCertificate.
 type GenerateCertificateRequest struct {
 	Proposal int64 `json:"proposal"` // Proposal ID — ProposalDetails.OID
