@@ -25,6 +25,8 @@ type API interface {
 	CheckWalletBalance(ctx context.Context, req *WalletBalanceRequest) (*CheckWalletBalanceResponse, error)
 	TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*TopUpWalletResponse, error)
 	GenerateCertificate(ctx context.Context, req *GenerateCertificateRequest) (*GenerateCertificateResponse, error)
+	InitiateExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error)
+	PayForExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error)
 	ClearCache()
 }
 
@@ -240,6 +242,47 @@ func (c *Client) TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*Top
 	}
 	out := &TopUpWalletResponse{}
 	if err := decodeBoolEnvelope(op, ErrTopUpWallet, "wallet top-up failed", body, out); err != nil {
+		return nil, err
+	}
+	out.Raw = body
+	return out, nil
+}
+
+// InitiateExtension starts an extension of an existing proposal for a further
+// period, returning the new debit note and the premium due for it.
+//
+// It quotes and books the extension; it does not pay for it. Follow it with
+// PayForExtension, then GenerateCertificate against the NoteOID returned here —
+// the original proposal's note certificates the original period only.
+func (c *Client) InitiateExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error) {
+	return c.extension(ctx, "InitiateExtension", endpointInitiateExtension, ErrInitiateExtension,
+		"extension initiation failed", req)
+}
+
+// PayForExtension pays the premium on an extension initiated by
+// InitiateExtension, taking the same payload.
+//
+// It moves money, so it is sent exactly once and never retried. A transport
+// error or timeout leaves the outcome unknown — the extension may already be
+// paid — so check the policy before sending it again, or the same extension can
+// be paid for twice.
+func (c *Client) PayForExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error) {
+	return c.extension(ctx, "PayForExtension", endpointPayForExtension, ErrPayForExtension,
+		"extension payment failed", req)
+}
+
+// extension runs either of the two extension endpoints: they take the same
+// payload and answer with the same envelope.
+func (c *Client) extension(ctx context.Context, op, path string, errCode int, failure string, req *ExtensionRequest) (*ExtensionResponse, error) {
+	if err := ValidateExtensionRequest(req); err != nil {
+		return nil, newInputError(op, err)
+	}
+	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: path, body: req})
+	if err != nil {
+		return nil, err
+	}
+	out := &ExtensionResponse{}
+	if err := decodeBoolEnvelope(op, errCode, failure, body, out); err != nil {
 		return nil, err
 	}
 	out.Raw = body
