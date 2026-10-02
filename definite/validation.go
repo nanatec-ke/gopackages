@@ -192,6 +192,27 @@ func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	return nil
 }
 
+// ValidateExtensionRequest validates an initiateExtension or payForExtension
+// payload. Both endpoints take the same body, so both use this.
+func ValidateExtensionRequest(req *ExtensionRequest) error {
+	if req == nil {
+		return errors.New("extension request is required")
+	}
+	if req.Proposal <= 0 {
+		return errors.New("proposal must be a positive proposal record ID")
+	}
+	if req.CommencementDate.IsZero() {
+		return errors.New("commencementDate is required")
+	}
+	if req.AgentCode <= 0 {
+		return errors.New("agentCode must be a positive intermediary record ID")
+	}
+	if blank(req.PaymentInterval) {
+		return errors.New("paymentInterval is required")
+	}
+	return nil
+}
+
 // ValidateGenerateCertificateRequest validates a generateCertificate payload.
 func ValidateGenerateCertificateRequest(req *GenerateCertificateRequest) error {
 	if req == nil {
