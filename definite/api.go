@@ -26,7 +26,7 @@ type API interface {
 	TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*TopUpWalletResponse, error)
 	GenerateCertificate(ctx context.Context, req *GenerateCertificateRequest) (*GenerateCertificateResponse, error)
 	InitiateExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error)
-	PayForExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error)
+	PayForExtension(ctx context.Context, req *PayForExtensionRequest) (*PayForExtensionResponse, error)
 	ClearCache()
 }
 
@@ -255,34 +255,50 @@ func (c *Client) TopUpWallet(ctx context.Context, req *TopUpWalletRequest) (*Top
 // PayForExtension, then GenerateCertificate against the NoteOID returned here —
 // the original proposal's note certificates the original period only.
 func (c *Client) InitiateExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error) {
-	return c.extension(ctx, "InitiateExtension", endpointInitiateExtension, ErrInitiateExtension,
-		"extension initiation failed", req)
+	const op = "InitiateExtension"
+	if err := ValidateExtensionRequest(req); err != nil {
+		return nil, newInputError(op, err)
+	}
+	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointInitiateExtension, body: req})
+	if err != nil {
+		return nil, err
+	}
+	out := &ExtensionResponse{}
+	if err := decodeBoolEnvelope(op, ErrInitiateExtension, "extension initiation failed", body, out); err != nil {
+		return nil, err
+	}
+	out.Raw = body
+	return out, nil
 }
 
-// PayForExtension pays the premium on an extension initiated by
-// InitiateExtension, taking the same payload.
+// PayForExtension pays an extension note booked by InitiateExtension and
+// approves it, so GenerateCertificate can issue the certificate for the
+// extended period against that same NoteOID.
+//
+// PhoneNumber is normalised to 2547XXXXXXXX before sending; req is not modified.
 //
 // It moves money, so it is sent exactly once and never retried. A transport
 // error or timeout leaves the outcome unknown — the extension may already be
 // paid — so check the policy before sending it again, or the same extension can
 // be paid for twice.
-func (c *Client) PayForExtension(ctx context.Context, req *ExtensionRequest) (*ExtensionResponse, error) {
-	return c.extension(ctx, "PayForExtension", endpointPayForExtension, ErrPayForExtension,
-		"extension payment failed", req)
-}
-
-// extension runs either of the two extension endpoints: they take the same
-// payload and answer with the same envelope.
-func (c *Client) extension(ctx context.Context, op, path string, errCode int, failure string, req *ExtensionRequest) (*ExtensionResponse, error) {
-	if err := ValidateExtensionRequest(req); err != nil {
+func (c *Client) PayForExtension(ctx context.Context, req *PayForExtensionRequest) (*PayForExtensionResponse, error) {
+	const op = "PayForExtension"
+	if err := ValidatePayForExtensionRequest(req); err != nil {
 		return nil, newInputError(op, err)
 	}
-	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: path, body: req})
+	payload := *req
+	phone, err := NormalizeKenyanPhone(payload.PhoneNumber)
+	if err != nil {
+		return nil, newInputError(op, err)
+	}
+	payload.PhoneNumber = phone
+
+	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointPayForExtension, body: &payload})
 	if err != nil {
 		return nil, err
 	}
-	out := &ExtensionResponse{}
-	if err := decodeBoolEnvelope(op, errCode, failure, body, out); err != nil {
+	out := &PayForExtensionResponse{}
+	if err := decodeBoolEnvelope(op, ErrPayForExtension, "extension payment failed", body, out); err != nil {
 		return nil, err
 	}
 	out.Raw = body
