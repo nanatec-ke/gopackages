@@ -47,7 +47,7 @@ const (
 	endpointTopUpWallet          = "/topUpWallet"         // POST
 	endpointGenerateCertificate  = "/generateCertificate" // POST
 	endpointInitiateExtension    = "/initiateExtension"   // POST
-	endpointPayForExtension      = "/payForExtension"     // POST
+	endpointPayForExtension      = "/PayForExtension"     // POST — capitalised, unlike the others
 )
 
 // Base URLs for each environment.
