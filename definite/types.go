@@ -349,8 +349,7 @@ type InitiatePaymentResponse = Response[*PaymentRecord]
 /*  Certificates                                                              */
 /* -------------------------------------------------------------------------- */
 
-// ExtensionRequest is the payload for both POST /api/v1/initiateExtension and
-// POST /api/v1/payForExtension, which take the same body.
+// ExtensionRequest is the payload for POST /api/v1/initiateExtension.
 //
 // An extension renews an existing proposal for a further period: the proposal
 // is the one the policy was opened with, and CommencementDate is when the new
@@ -364,8 +363,50 @@ type ExtensionRequest struct {
 	PaymentInterval  string    `json:"paymentInterval"` // One of the PaymentInterval constants
 }
 
-// ExtensionResponse is returned by Client.InitiateExtension and
-// Client.PayForExtension.
+// PayForExtensionRequest is the payload for POST /api/v1/PayForExtension, which
+// pays an extension note booked by InitiateExtension and approves it, so the
+// certificate for the extended period can be generated.
+//
+// It identifies the note rather than the proposal: NoteOID and ReferenceNumber
+// are what InitiateExtension returned as noteOID and ReferenceNote.
+type PayForExtensionRequest struct {
+	NoteOID          int64  // Debit note for the extension
+	ReferenceNumber  string // Its reference, e.g. EXT2026130553
+	PhoneNumber      string // Payer's phone; see NormalizeKenyanPhone
+	MpesaTransaction string // M-Pesa receipt for the payment
+	PaymentMethod    int    // See the PaymentMethod constants
+}
+
+// MarshalJSON writes the documented body. PhoneNumber goes out as a JSON number,
+// as on TopUpWallet and unlike InitiatePayment, which takes a string. It must
+// already be normalised to digits; Client.PayForExtension does that.
+func (r PayForExtensionRequest) MarshalJSON() ([]byte, error) {
+	phone, err := strconv.ParseInt(strings.TrimSpace(r.PhoneNumber), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("PhoneNumber %q is not a normalised phone number: %w", r.PhoneNumber, err)
+	}
+	return json.Marshal(struct {
+		NoteOID          int64  `json:"NoteOID"`
+		ReferenceNumber  string `json:"ReferenceNumber"`
+		PhoneNumber      int64  `json:"PhoneNumber"`
+		MpesaTransaction string `json:"MpesaTransaction"`
+		PaymentMethod    int    `json:"PaymentMethod"`
+	}{r.NoteOID, r.ReferenceNumber, phone, r.MpesaTransaction, r.PaymentMethod})
+}
+
+// PayForExtensionResponse is returned by Client.PayForExtension: "Payment
+// successful and note approved. Proceed to issue certificate".
+type PayForExtensionResponse struct {
+	Success *FlexBool       `json:"success,omitempty"`
+	Message FlexString      `json:"message,omitempty"`
+	Raw     json.RawMessage `json:"-"`
+}
+
+// Succeeded reports whether the extension was paid. An absent success field
+// counts as a success; only an explicit false is a failure.
+func (r *PayForExtensionResponse) Succeeded() bool { return r.Success == nil || bool(*r.Success) }
+
+// ExtensionResponse is returned by Client.InitiateExtension.
 //
 // Like newProposal, these endpoints report their outcome with a boolean
 // "success" and put the details at the top level rather than using Response.
