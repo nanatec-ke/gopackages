@@ -192,8 +192,30 @@ func ValidateInitiatePaymentRequest(req *InitiatePaymentRequest) error {
 	return nil
 }
 
-// ValidateExtensionRequest validates an initiateExtension or payForExtension
-// payload. Both endpoints take the same body, so both use this.
+// ValidatePayForExtensionRequest validates a PayForExtension payload.
+func ValidatePayForExtensionRequest(req *PayForExtensionRequest) error {
+	if req == nil {
+		return errors.New("pay for extension request is required")
+	}
+	if req.NoteOID <= 0 {
+		return errors.New("NoteOID must be a positive debit note OID")
+	}
+	if blank(req.ReferenceNumber) {
+		return errors.New("ReferenceNumber is required")
+	}
+	if blank(req.PhoneNumber) {
+		return errors.New("PhoneNumber is required")
+	}
+	if _, err := NormalizeKenyanPhone(req.PhoneNumber); err != nil {
+		return fmt.Errorf("PhoneNumber is not a Kenyan phone number: %q", req.PhoneNumber)
+	}
+	if blank(req.MpesaTransaction) {
+		return errors.New("MpesaTransaction is required")
+	}
+	return nil
+}
+
+// ValidateExtensionRequest validates an initiateExtension payload.
 func ValidateExtensionRequest(req *ExtensionRequest) error {
 	if req == nil {
 		return errors.New("extension request is required")
