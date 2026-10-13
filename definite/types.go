@@ -372,26 +372,43 @@ type ExtensionRequest struct {
 type PayForExtensionRequest struct {
 	NoteOID          int64  // Debit note for the extension
 	ReferenceNumber  string // Its reference, e.g. EXT2026130553
-	PhoneNumber      string // Payer's phone; see NormalizeKenyanPhone
-	MpesaTransaction string // M-Pesa receipt for the payment
+	PhoneNumber      string // Payer's phone; see NormalizeKenyanPhone. Optional
+	MpesaTransaction string // M-Pesa receipt for the payment. Optional
 	PaymentMethod    int    // See the PaymentMethod constants
+
+
+	// Proposal is the proposal the extension belongs to. It is not in the
+	// documented body, which identifies the note alone; it is sent only when
+	// set, for installations whose intermediary is resolved from the proposal.
+	Proposal int64
 }
 
 // MarshalJSON writes the documented body. PhoneNumber goes out as a JSON number,
 // as on TopUpWallet and unlike InitiatePayment, which takes a string. It must
 // already be normalised to digits; Client.PayForExtension does that.
+//
+// The optional fields are left out entirely when empty rather than sent blank,
+// so the body stays exactly as documented when nothing optional is set.
 func (r PayForExtensionRequest) MarshalJSON() ([]byte, error) {
-	phone, err := strconv.ParseInt(strings.TrimSpace(r.PhoneNumber), 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("PhoneNumber %q is not a normalised phone number: %w", r.PhoneNumber, err)
+	body := map[string]any{
+		"NoteOID":         r.NoteOID,
+		"ReferenceNumber": r.ReferenceNumber,
+		"PaymentMethod":   r.PaymentMethod,
 	}
-	return json.Marshal(struct {
-		NoteOID          int64  `json:"NoteOID"`
-		ReferenceNumber  string `json:"ReferenceNumber"`
-		PhoneNumber      int64  `json:"PhoneNumber"`
-		MpesaTransaction string `json:"MpesaTransaction"`
-		PaymentMethod    int    `json:"PaymentMethod"`
-	}{r.NoteOID, r.ReferenceNumber, phone, r.MpesaTransaction, r.PaymentMethod})
+	if phone := strings.TrimSpace(r.PhoneNumber); phone != "" {
+		number, err := strconv.ParseInt(phone, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("PhoneNumber %q is not a normalised phone number: %w", r.PhoneNumber, err)
+		}
+		body["PhoneNumber"] = number
+	}
+	if receipt := strings.TrimSpace(r.MpesaTransaction); receipt != "" {
+		body["MpesaTransaction"] = receipt
+	}
+	if r.Proposal > 0 {
+		body["proposal"] = r.Proposal
+	}
+	return json.Marshal(body)
 }
 
 // PayForExtensionResponse is returned by Client.PayForExtension: "Payment
