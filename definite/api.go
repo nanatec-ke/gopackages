@@ -287,11 +287,13 @@ func (c *Client) PayForExtension(ctx context.Context, req *PayForExtensionReques
 		return nil, newInputError(op, err)
 	}
 	payload := *req
-	phone, err := NormalizeKenyanPhone(payload.PhoneNumber)
-	if err != nil {
-		return nil, newInputError(op, err)
+	if strings.TrimSpace(payload.PhoneNumber) != "" {
+		phone, err := NormalizeKenyanPhone(payload.PhoneNumber)
+		if err != nil {
+			return nil, newInputError(op, err)
+		}
+		payload.PhoneNumber = phone
 	}
-	payload.PhoneNumber = phone
 
 	body, err := c.do(ctx, request{op: op, method: http.MethodPost, path: endpointPayForExtension, body: &payload})
 	if err != nil {
