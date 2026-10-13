@@ -203,14 +203,12 @@ func ValidatePayForExtensionRequest(req *PayForExtensionRequest) error {
 	if blank(req.ReferenceNumber) {
 		return errors.New("ReferenceNumber is required")
 	}
-	if blank(req.PhoneNumber) {
-		return errors.New("PhoneNumber is required")
-	}
-	if _, err := NormalizeKenyanPhone(req.PhoneNumber); err != nil {
-		return fmt.Errorf("PhoneNumber is not a Kenyan phone number: %q", req.PhoneNumber)
-	}
-	if blank(req.MpesaTransaction) {
-		return errors.New("MpesaTransaction is required")
+	// PhoneNumber and MpesaTransaction are optional: left empty they are not
+	// sent at all. A phone that is given must still be a usable one.
+	if !blank(req.PhoneNumber) {
+		if _, err := NormalizeKenyanPhone(req.PhoneNumber); err != nil {
+			return fmt.Errorf("PhoneNumber is not a Kenyan phone number: %q", req.PhoneNumber)
+		}
 	}
 	return nil
 }
