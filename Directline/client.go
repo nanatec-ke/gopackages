@@ -123,67 +123,66 @@ func (c *Client) ensureToken(ctx context.Context) error {
 	return err
 }
 
+// sendAuthJSON performs one attempt against url, building a request of its own
+// so the payload can be replayed. Reusing a *http.Request across attempts would
+// resend a body reader the first attempt already drained.
+func (c *Client) sendAuthJSON(ctx context.Context, method, url, token string, payload []byte) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
+	if err != nil {
+		return 0, nil, newInternalError("doAuthJSON:create", ErrCreateRequest, err, c.IsDebug())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, nil, newExternalError("doAuthJSON:do", ErrHTTPRequest, err.Error(), 0, c.IsDebug())
+	}
+	defer func() { _ = resp.Body.Close() }()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, nil, newInternalError("doAuthJSON:read", ErrReadResponse, err, c.IsDebug())
+	}
+	c.debugLog("status=%d body=%s", resp.StatusCode, string(b))
+	return resp.StatusCode, b, nil
+}
+
 func (c *Client) doAuthJSON(ctx context.Context, method, path string, payload []byte, out interface{}) (int, error) {
 	if err := c.ensureToken(ctx); err != nil {
 		return 0, err
 	}
 	url := c.endpoint + ensureLeadingSlash(path)
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
+
+	tok, _ := c.tokens.Get("directline_token")
+	status, b, err := c.sendAuthJSON(ctx, method, url, tok, payload)
 	if err != nil {
-		return 0, newInternalError("doAuthJSON:create", ErrCreateRequest, err, c.IsDebug())
+		return status, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	if tok, ok := c.tokens.Get("directline_token"); ok {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tok))
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return 0, newExternalError("doAuthJSON:do", ErrHTTPRequest, err.Error(), 0, c.IsDebug())
-	}
-	defer func() { _ = resp.Body.Close() }()
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return resp.StatusCode, newInternalError("doAuthJSON:read", ErrReadResponse, err, c.IsDebug())
-	}
-	c.debugLog("status=%d body=%s", resp.StatusCode, string(b))
-	if resp.StatusCode == http.StatusUnauthorized {
-		// try refresh
-		if _, err := c.GetToken(ctx); err != nil {
-			return resp.StatusCode, err
-		}
-		// retry once
-		if tok, ok := c.tokens.Get("directline_token"); ok {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tok))
-		}
-		resp2, err := c.http.Do(req)
+
+	if status == http.StatusUnauthorized {
+		// The cached token was rejected. Drop it first — GetToken serves the
+		// cache, so refreshing without this hands back the same rejected token.
+		c.tokens.Remove("directline_token")
+		tok, err = c.GetToken(ctx)
 		if err != nil {
-			return 0, newExternalError("doAuthJSON:retry", ErrHTTPRequest, err.Error(), 0, c.IsDebug())
+			return status, err
 		}
-		defer func() { _ = resp2.Body.Close() }()
-		b, err = io.ReadAll(resp2.Body)
+		status, b, err = c.sendAuthJSON(ctx, method, url, tok, payload)
 		if err != nil {
-			return resp2.StatusCode, newInternalError("doAuthJSON:read-retry", ErrReadResponse, err, c.IsDebug())
+			return status, err
 		}
-		c.debugLog("token status=%d body=%s", resp2.StatusCode, string(b))
-		if resp2.StatusCode != http.StatusOK && resp2.StatusCode != http.StatusCreated {
-			return resp2.StatusCode, newExternalError("doAuthJSON", ErrHTTPRequest, string(b), resp2.StatusCode, c.IsDebug())
-		}
-		if out != nil {
-			if err := json.Unmarshal(b, out); err != nil {
-				return resp2.StatusCode, newInternalError("doAuthJSON:unmarshal-retry", ErrUnmarshalResponse, err, c.IsDebug())
-			}
-		}
-		return resp2.StatusCode, nil
 	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return resp.StatusCode, newExternalError("doAuthJSON", ErrHTTPRequest, string(b), resp.StatusCode, c.IsDebug())
+
+	if status != http.StatusOK && status != http.StatusCreated {
+		return status, newExternalError("doAuthJSON", ErrHTTPRequest, string(b), status, c.IsDebug())
 	}
 	if out != nil {
 		if err := json.Unmarshal(b, out); err != nil {
-			return resp.StatusCode, newInternalError("doAuthJSON:unmarshal", ErrUnmarshalResponse, err, c.IsDebug())
+			return status, newInternalError("doAuthJSON:unmarshal", ErrUnmarshalResponse, err, c.IsDebug())
 		}
 	}
-	return resp.StatusCode, nil
+	return status, nil
 }
 
 func ensureLeadingSlash(p string) string {
