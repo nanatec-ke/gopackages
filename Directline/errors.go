@@ -18,7 +18,10 @@ const (
 	ErrHTTPRequest       = 1004
 	ErrReadResponse      = 1005
 	ErrUnmarshalResponse = 1006
-	ErrLoginFailed       = 2001
+	// ErrInvalidInput marks a request rejected by local validation, before
+	// anything was sent. Matches the TypeScript SDK's INVALID_INPUT.
+	ErrInvalidInput = 1007
+	ErrLoginFailed  = 2001
 )
 
 // APIError wraps response errors from Directline
