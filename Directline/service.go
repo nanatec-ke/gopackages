@@ -3,10 +3,18 @@ package directline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 )
+
+// msisdnRe matches the 12-digit 2547XXXXXXXX form Directline documents for an
+// STK push. A push sent to a malformed number is accepted and then silently
+// never delivered, so the shape is checked rather than only non-emptiness.
+var msisdnRe = regexp.MustCompile(`^254\d{9}$`)
 
 func (c *Client) CalculatePremium(ctx context.Context, req *CalculatePremiumRequest) (*CalculatePremiumResponse, error) {
 	var out CalculatePremiumResponse
@@ -213,6 +221,83 @@ func (c *Client) CreateFlammableTankersComprehensive(ctx context.Context, req *T
 
 func (c *Client) CreateFlammableTankersTPO(ctx context.Context, req *TransactionRequest) (*TransactionResponse, *ValidationErrorResponse, error) {
 	return c.CreateTransaction(ctx, EndpointFlammableTankersTPO, req)
+}
+
+// --- Agent wallet ---
+
+// validateAgentTopUpRequest rejects a top-up payload the API cannot accept,
+// before anything is sent.
+func (c *Client) validateAgentTopUpRequest(op string, req *AgentTopUpRequest) error {
+	if req == nil {
+		return newInternalError(op, ErrInvalidInput, errors.New("top up request is required"), c.IsDebug())
+	}
+	if !msisdnRe.MatchString(req.Number) {
+		return newInternalError(op, ErrInvalidInput, errors.New("number must be a 12-digit phone number in 2547XXXXXXXX form"), c.IsDebug())
+	}
+	if strings.TrimSpace(req.Account) == "" {
+		return newInternalError(op, ErrInvalidInput, errors.New("account is required"), c.IsDebug())
+	}
+	if req.Amount <= 0 {
+		return newInternalError(op, ErrInvalidInput, errors.New("amount must be a whole number of KES greater than zero"), c.IsDebug())
+	}
+	return nil
+}
+
+// TopUpAgent sends an M-PESA STK push to fund an agent's wallet, via
+// POST /api/pay/stk.
+//
+// The returned response means the prompt was accepted for delivery, not that
+// the wallet has been funded — confirm with GetAgentBalance. A 200 carrying no
+// checkout ID is reported as a success for the same reason: resubmitting would
+// prompt the subscriber twice.
+//
+// req.Account must match the agent code in the bearer token; a mismatch answers
+// 400, and an agent code Directline does not know answers 401.
+func (c *Client) TopUpAgent(ctx context.Context, req *AgentTopUpRequest) (*AgentTopUpResponse, error) {
+	const op = "TopUpAgent"
+	if err := c.validateAgentTopUpRequest(op, req); err != nil {
+		return nil, err
+	}
+	var out AgentTopUpResponse
+	if _, err := c.doAuthJSON(ctx, http.MethodPost, "/api/pay/stk", mustMarshal(req), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetAgentBalance reads an agent's current wallet balance, via
+// POST /api/agent/balance.
+//
+// The result is never cached: a balance moves with every transaction, so each
+// call is a fresh read. agentCode must match the agent code in the bearer
+// token, or Directline answers 400; one it does not know answers 401.
+func (c *Client) GetAgentBalance(ctx context.Context, agentCode int) (*AgentBalance, error) {
+	const op = "GetAgentBalance"
+	if agentCode <= 0 {
+		return nil, newInternalError(op, ErrInvalidInput, errors.New("agentCode must be a positive agent code"), c.IsDebug())
+	}
+
+	var out AgentBalanceResponse
+	payload := mustMarshal(&AgentBalanceRequest{AgentCode: agentCode})
+	if _, err := c.doAuthJSON(ctx, http.MethodPost, "/api/agent/balance", payload, &out); err != nil {
+		return nil, err
+	}
+
+	// A response carrying no balance is an error rather than a zero balance, so
+	// a rejected or empty answer cannot pass for an empty wallet.
+	if out.Balance == nil {
+		msg := out.Message
+		if msg == "" {
+			msg = fmt.Sprintf("no balance returned for agent code %d", agentCode)
+		}
+		return nil, newInternalError(op, ErrUnmarshalResponse, errors.New(msg), c.IsDebug())
+	}
+
+	code := out.AgentCode
+	if code == 0 {
+		code = agentCode
+	}
+	return &AgentBalance{AgentCode: code, Balance: *out.Balance}, nil
 }
 
 func mustMarshal(v interface{}) []byte {
