@@ -161,3 +161,56 @@ type BodyTypesResponse struct {
 		BodyTypeName string `json:"bodyTypeName"`
 	} `json:"bodyTypes"`
 }
+
+// --- Agent wallet types ---
+
+// AgentTopUpRequest models the /api/pay/stk request, which sends an M-PESA STK
+// push to fund an agent's wallet.
+type AgentTopUpRequest struct {
+	// Number is the handset prompted, in 2547XXXXXXXX form. It need not be the
+	// agent's own line — any subscriber can fund the wallet named by Account.
+	Number string `json:"number"`
+	// Account is the agent code to credit. It must match the agent code in the
+	// bearer token, or Directline answers 400.
+	Account string `json:"account"`
+	// Amount is the top-up in whole KES.
+	Amount int `json:"amount"`
+}
+
+// AgentTopUpResponse models a successful /api/pay/stk response.
+//
+// A response means the prompt was accepted for delivery, not that the wallet
+// has been funded: the credit lands only once the subscriber approves the
+// prompt on the handset. Confirm with GetAgentBalance rather than treating a
+// returned response as settled.
+type AgentTopUpResponse struct {
+	// Message is the outcome description, e.g. "Submission successful".
+	Message string `json:"message"`
+	// ID is the M-PESA checkout request ID, e.g. "ws_CO_12345678". It is absent
+	// when the API answers 200 without one, which is not a failure.
+	ID string `json:"id"`
+}
+
+// AgentBalanceRequest models the /api/agent/balance request.
+type AgentBalanceRequest struct {
+	AgentCode int `json:"agentCode"`
+}
+
+// AgentBalanceResponse models the raw /api/agent/balance response.
+//
+// Balance is a pointer so an omitted balance stays distinguishable from a
+// genuine zero one.
+type AgentBalanceResponse struct {
+	AgentCode int      `json:"agentCode"`
+	Balance   *float64 `json:"balance"`
+	Message   string   `json:"message"`
+}
+
+// AgentBalance is an agent's wallet balance, normalised from
+// AgentBalanceResponse so Balance is always present.
+type AgentBalance struct {
+	// AgentCode the balance belongs to.
+	AgentCode int
+	// Balance available, in KES.
+	Balance float64
+}
