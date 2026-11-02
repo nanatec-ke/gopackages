@@ -1,6 +1,9 @@
 package directline
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // TokenResponse models the token generation response from Directline
 type TokenResponse struct {
@@ -8,6 +11,28 @@ type TokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
 	Message     string `json:"message"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler. The gateway quotes expires_in as a
+// string, so the response is read through lenient scalars and then copied onto
+// the plain field types callers already use.
+func (t *TokenResponse) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Success     flexBool `json:"success"`
+		AccessToken string   `json:"access_token"`
+		ExpiresIn   flexInt  `json:"expires_in"`
+		Message     string   `json:"message"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*t = TokenResponse{
+		Success:     bool(raw.Success),
+		AccessToken: raw.AccessToken,
+		ExpiresIn:   int(raw.ExpiresIn),
+		Message:     raw.Message,
+	}
+	return nil
 }
 
 // CreateTransactionRequest minimal sample
@@ -204,6 +229,26 @@ type AgentBalanceResponse struct {
 	AgentCode int      `json:"agentCode"`
 	Balance   *float64 `json:"balance"`
 	Message   string   `json:"message"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler. The same gateway quotes scalars
+// here too, so a balance that arrives as "50000.00" still decodes. Balance
+// stays a pointer: an omitted balance must not read as a genuine zero.
+func (a *AgentBalanceResponse) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		AgentCode flexInt    `json:"agentCode"`
+		Balance   *flexFloat `json:"balance"`
+		Message   string     `json:"message"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*a = AgentBalanceResponse{AgentCode: int(raw.AgentCode), Message: raw.Message}
+	if raw.Balance != nil {
+		balance := float64(*raw.Balance)
+		a.Balance = &balance
+	}
+	return nil
 }
 
 // AgentBalance is an agent's wallet balance, normalised from
