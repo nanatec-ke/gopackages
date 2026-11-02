@@ -105,13 +105,36 @@ func (c *Client) GetToken(ctx context.Context) (string, error) {
 	if tr.AccessToken == "" {
 		return "", newAuthError("GetToken", ErrLoginFailed, "missing access token", c.IsDebug())
 	}
-	// compute ttl
-	ttl := c.cfg.TokenTTL
-	if tr.ExpiresIn > 0 {
-		ttl = time.Duration(tr.ExpiresIn) * time.Second
-	}
-	c.tokens.Set("directline_token", tr.AccessToken, ttl)
+	c.tokens.Set("directline_token", tr.AccessToken, tokenCacheTTL(tr.ExpiresIn, c.cfg.TokenTTL))
 	return tr.AccessToken, nil
+}
+
+// defaultTokenTTL caches a token for which no lifetime is known at all: the
+// gateway supplied none and Config.TokenTTL is unset. It is deliberately short,
+// and doAuthJSON re-authenticates on a 401 regardless, so an over-long cache
+// costs one retry rather than a failed call.
+const defaultTokenTTL = 5 * time.Minute
+
+// tokenCacheTTL decides how long a freshly issued token is cached.
+// expiresIn is the gateway's lifetime in seconds, or 0 when it supplied none.
+//
+// The lifetime is shortened by a tenth so a token is not still being sent as it
+// expires; with the 60-second tokens the gateway issues, caching for the full
+// window puts the last call of it on the edge.
+func tokenCacheTTL(expiresIn int, fallback time.Duration) time.Duration {
+	ttl := fallback
+	if expiresIn > 0 {
+		ttl = time.Duration(expiresIn) * time.Second
+	}
+	if ttl <= 0 {
+		// Without this a zero TTL reaches TTLCache.Set, which stores the token
+		// with an expiry of now — already expired, so every call re-authenticates.
+		ttl = defaultTokenTTL
+	}
+	if margin := ttl / 10; margin > 0 {
+		ttl -= margin
+	}
+	return ttl
 }
 
 func (c *Client) ensureToken(ctx context.Context) error {
