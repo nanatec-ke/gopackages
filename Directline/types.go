@@ -13,15 +13,16 @@ type TokenResponse struct {
 	Message     string `json:"message"`
 }
 
-// UnmarshalJSON implements json.Unmarshaler. The gateway quotes expires_in as a
-// string, so the response is read through lenient scalars and then copied onto
-// the plain field types callers already use.
+// UnmarshalJSON implements json.Unmarshaler. The gateway writes expires_in in
+// whatever shape it likes, so the response is read through lenient scalars and
+// then copied onto the plain field types callers already use. ExpiresIn is 0
+// when the lifetime could not be read; GetToken falls back to Config.TokenTTL.
 func (t *TokenResponse) UnmarshalJSON(b []byte) error {
 	var raw struct {
-		Success     flexBool `json:"success"`
-		AccessToken string   `json:"access_token"`
-		ExpiresIn   flexInt  `json:"expires_in"`
-		Message     string   `json:"message"`
+		Success     flexBool         `json:"success"`
+		AccessToken string           `json:"access_token"`
+		ExpiresIn   expiresInSeconds `json:"expires_in"`
+		Message     string           `json:"message"`
 	}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
