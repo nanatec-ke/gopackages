@@ -9,14 +9,14 @@ import (
 	"strings"
 )
 
-// The Hayabusa gateway is loosely typed. /api/token/generate answers with
-// expires_in quoted as a string ("3600") although the documentation shows a
-// number, and encoding/json fails an entire decode on a single such mismatch:
-// every authenticated call lost its token to
-// "cannot unmarshal string into Go struct field TokenResponse.expires_in of
-// type int". The gateway's scalar response fields are therefore decoded through
-// the lenient types below, for the same reason the definite package decodes
-// leniently — a call the gateway accepted must never fail to decode here.
+// The Hayabusa gateway is loosely typed, and encoding/json fails an entire
+// decode on a single mismatch. /api/token/generate has been seen to answer with
+// expires_in as a bare number (3600), as a quoted number ("3600") and as
+// English prose ("60 Seconds"), each of which took down every authenticated
+// call in turn. The gateway's scalar response fields are therefore decoded
+// through the lenient types below, for the same reason the definite package
+// decodes leniently — a call the gateway accepted must never fail to decode
+// here.
 //
 // Requests keep plain Go types; only decoding is lenient.
 
@@ -94,5 +94,69 @@ func (f *flexBool) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("directline: cannot decode %s as a boolean", b)
 	}
 	*f = flexBool(v)
+	return nil
+}
+
+// parseTTLSeconds reads a token lifetime and returns it in seconds. It accepts
+// a bare count of seconds ("3600"), a decimal ("3600.0") and a count carried by
+// an English unit ("60 Seconds", "1 hour", "30 min", "90s"). A bare number is
+// read as seconds, which is what the documented shape means.
+func parseTTLSeconds(s string) (int, bool) {
+	s = strings.TrimSpace(s)
+	i := 0
+	for i < len(s) && (s[i] >= '0' && s[i] <= '9' || s[i] == '.' || s[i] == '+' || s[i] == '-') {
+		i++
+	}
+	count, err := strconv.ParseFloat(strings.TrimSpace(s[:i]), 64)
+	if err != nil || math.IsNaN(count) || math.IsInf(count, 0) || count <= 0 {
+		return 0, false
+	}
+
+	var perUnit float64
+	switch unit := strings.ToLower(strings.TrimSpace(s[i:])); {
+	case unit == "", strings.HasPrefix(unit, "s"):
+		perUnit = 1
+	case strings.HasPrefix(unit, "ms"), strings.HasPrefix(unit, "milli"):
+		perUnit = 0.001
+	case strings.HasPrefix(unit, "m"):
+		perUnit = 60
+	case strings.HasPrefix(unit, "h"):
+		perUnit = 3600
+	case strings.HasPrefix(unit, "d"):
+		perUnit = 86400
+	default:
+		// An unrecognised unit makes the number meaningless, so report nothing
+		// rather than guess at seconds.
+		return 0, false
+	}
+
+	switch secs := count * perUnit; {
+	case secs < 1:
+		return 0, false
+	case secs > math.MaxInt32:
+		return math.MaxInt32, true
+	default:
+		return int(secs), true
+	}
+}
+
+// expiresInSeconds is a token lifetime in seconds.
+//
+// It never fails to decode. expires_in only decides how long a token is cached,
+// and Config.TokenTTL already stands in when the gateway does not supply one —
+// so a token the gateway issued must not be thrown away because its lifetime
+// was written in a shape this package does not recognise. That is exactly what
+// happened to "60 Seconds". Anything unreadable decodes as 0, which GetToken
+// treats as "not supplied".
+type expiresInSeconds int
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (e *expiresInSeconds) UnmarshalJSON(b []byte) error {
+	*e = 0
+	if s, isNull := scalarText(b); !isNull && s != "" {
+		if secs, ok := parseTTLSeconds(s); ok {
+			*e = expiresInSeconds(secs)
+		}
+	}
 	return nil
 }
