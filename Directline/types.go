@@ -48,6 +48,26 @@ type CreateTransactionResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// UnmarshalJSON implements json.Unmarshaler. This carries the same id as
+// AgentTopUpResponse and so the same exposure to a numeric one; a created
+// transaction must not be reported as a failure over the shape of its id.
+func (c *CreateTransactionResponse) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Success flexBool   `json:"success"`
+		ID      flexString `json:"id"`
+		Message flexString `json:"message"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*c = CreateTransactionResponse{
+		Success: bool(raw.Success),
+		ID:      string(raw.ID),
+		Message: string(raw.Message),
+	}
+	return nil
+}
+
 // CalculatePremium request/response
 type CalculatePremiumRequest struct {
 	VehicleType string `json:"vehicleType"`
@@ -215,6 +235,22 @@ type AgentTopUpResponse struct {
 	// ID is the M-PESA checkout request ID, e.g. "ws_CO_12345678". It is absent
 	// when the API answers 200 without one, which is not a failure.
 	ID string `json:"id"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler. The gateway has been seen to send
+// id as a number as well as in the documented ws_CO_... form, so both decode.
+// A push the gateway accepted must not be reported as a failure over the shape
+// of its id: the handset has already been prompted by then.
+func (a *AgentTopUpResponse) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Message flexString `json:"message"`
+		ID      flexString `json:"id"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*a = AgentTopUpResponse{Message: string(raw.Message), ID: string(raw.ID)}
+	return nil
 }
 
 // AgentBalanceRequest models the /api/agent/balance request.
