@@ -160,3 +160,42 @@ func (e *expiresInSeconds) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+// flexString is a string that also decodes from a JSON number or boolean, and
+// from null (as ""). /api/pay/stk returns id as a number despite the documented
+// ws_CO_... form, which failed the whole decode of an STK push that had already
+// been accepted — the handset was prompted and the caller saw an error.
+//
+// A number keeps its source text, so an id of 12345 decodes as "12345" and not
+// as "1.2345e+04"; an integral float loses its decimal point so an id carries
+// no stray ".0". An object or array is still an error: those are not a scalar
+// the gateway could have meant as an id.
+type flexString string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (f *flexString) UnmarshalJSON(b []byte) error {
+	raw := bytes.TrimSpace(b)
+	if len(raw) == 0 || string(raw) == "null" {
+		*f = ""
+		return nil
+	}
+	if raw[0] == '{' || raw[0] == '[' {
+		return fmt.Errorf("directline: cannot decode %s as a string", b)
+	}
+	if raw[0] == '"' {
+		var unquoted string
+		if err := json.Unmarshal(raw, &unquoted); err != nil {
+			return err
+		}
+		*f = flexString(unquoted)
+		return nil
+	}
+
+	text := string(raw)
+	if x, err := strconv.ParseFloat(text, 64); err == nil &&
+		!math.IsInf(x, 0) && !math.IsNaN(x) && x == math.Trunc(x) && math.Abs(x) < 1e15 {
+		text = strconv.FormatInt(int64(x), 10)
+	}
+	*f = flexString(text)
+	return nil
+}
