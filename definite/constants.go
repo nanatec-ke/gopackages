@@ -56,8 +56,8 @@ const (
 // conventional counterpart and is unconfirmed — get the real host from Definite
 // and set Config.BaseURL if it differs.
 const (
-	BaseURLUAT        = "https://uat.definiteassurance.com"
-	BaseURLProduction = "https://digitalapi.definiteassurance.com"
+	BaseURLUAT        = "https://uat.definiteassurance.com/api/v1"
+	BaseURLProduction = "https://digitalapi.definiteassurance.com/api/app/v1"
 )
 
 // Defaults applied by NewClient when the corresponding Config field is zero.
