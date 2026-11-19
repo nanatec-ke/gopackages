@@ -175,17 +175,18 @@ func decodeEnvelope[T any](op string, code int, fallback string, body []byte) (*
 		return out, nil
 	}
 	var env struct {
-		Status    FlexString      `json:"status"`
-		Message   FlexString      `json:"message"`
-		ErrorCode FlexString      `json:"errorCode"`
-		Data      json.RawMessage `json:"data"`
+		Status       FlexString      `json:"status"`
+		Message      FlexString      `json:"message"`
+		ErrorMessage FlexString      `json:"errorMessage"`
+		ErrorCode    FlexString      `json:"errorCode"`
+		Data         json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(body, &env); err != nil {
 		return nil, decodeError(op, body, err)
 	}
-	out.Status, out.Message, out.ErrorCode = env.Status, env.Message, env.ErrorCode
+	out.Status, out.Message, out.ErrorMessage, out.ErrorCode = env.Status, env.Message, env.ErrorMessage, env.ErrorCode
 	if !out.Succeeded() {
-		return nil, newAPIError(op, code, messageOr(env.Message, fallback), string(env.ErrorCode), body)
+		return nil, newAPIError(op, code, apiMessage(env.ErrorMessage, env.Message, fallback), string(env.ErrorCode), body)
 	}
 	if len(env.Data) > 0 && string(env.Data) != "null" {
 		if err := json.Unmarshal(env.Data, &out.Data); err != nil {
@@ -206,17 +207,18 @@ func decodeBoolEnvelope(op string, code int, fallback string, body []byte, out a
 		return nil
 	}
 	var env struct {
-		Success   *FlexBool  `json:"success"`
-		Status    FlexString `json:"status"`
-		Message   FlexString `json:"message"`
-		ErrorCode FlexString `json:"errorCode"`
+		Success      *FlexBool  `json:"success"`
+		Status       FlexString `json:"status"`
+		Message      FlexString `json:"message"`
+		ErrorMessage FlexString `json:"errorMessage"`
+		ErrorCode    FlexString `json:"errorCode"`
 	}
 	if err := json.Unmarshal(body, &env); err != nil {
 		return decodeError(op, body, err)
 	}
 	statusFailed := !(&Response[struct{}]{Status: env.Status}).Succeeded()
 	if (env.Success != nil && !bool(*env.Success)) || statusFailed {
-		return newAPIError(op, code, messageOr(env.Message, fallback), string(env.ErrorCode), body)
+		return newAPIError(op, code, apiMessage(env.ErrorMessage, env.Message, fallback), string(env.ErrorCode), body)
 	}
 	if err := json.Unmarshal(body, out); err != nil {
 		return decodeError(op, body, err)
@@ -262,6 +264,15 @@ func messageOr(m FlexString, fallback string) string {
 		return fallback
 	}
 	return string(m)
+}
+
+// apiMessage is what an error body says went wrong: its errorMessage, the
+// specific reason when Definite sends one, else its message, else fallback.
+func apiMessage(errorMessage, message FlexString, fallback string) string {
+	if errorMessage != "" {
+		return string(errorMessage)
+	}
+	return messageOr(message, fallback)
 }
 
 // referenceData serves a reference-data endpoint from cache when a live entry
