@@ -124,14 +124,23 @@ type CalculatePremiumRequest struct {
 	TransactionType int `json:"-"`
 }
 
-// PremiumBreakdown is the quote returned by calculatePremium.
+// PremiumBreakdown is the quote returned by calculatePremium. Definite's
+// documented answer is the breakdown itself:
+//
+//	{"basicPremium": 4750, "PHCF": 12, "trainingLevy": 10, "stampDuty": 40, "grossPremium": 4812}
+//
+// GrossPremium is what is payable. Premium, PCF and Total are kept for a
+// response in the older {"data": {...}} shape.
 type PremiumBreakdown struct {
-	Premium      FlexFloat `json:"premium,omitempty"`      // Total payable premium
 	BasicPremium FlexFloat `json:"basicPremium,omitempty"` // Before levies and charges
+	PHCF         FlexFloat `json:"PHCF,omitempty"`         // Policyholders' Compensation Fund levy
 	TrainingLevy FlexFloat `json:"trainingLevy,omitempty"`
-	PCF          FlexFloat `json:"pcf,omitempty"` // Policyholders Compensation Fund
 	StampDuty    FlexFloat `json:"stampDuty,omitempty"`
-	Total        FlexFloat `json:"total,omitempty"` // Total including all levies
+	GrossPremium FlexFloat `json:"grossPremium,omitempty"` // Total payable, levies included
+
+	Premium FlexFloat `json:"premium,omitempty"`
+	PCF     FlexFloat `json:"pcf,omitempty"`
+	Total   FlexFloat `json:"total,omitempty"`
 }
 
 // CalculatePremiumResponse is returned by Client.CalculatePremium.
