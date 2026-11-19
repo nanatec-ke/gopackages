@@ -17,7 +17,8 @@ import (
 // be recovered with json.Unmarshal(resp.Raw, &yourStruct).
 type Response[T any] struct {
 	Status    FlexString      `json:"status,omitempty"`    // "success" or "error"
-	Message   FlexString      `json:"message,omitempty"`   // Human-readable outcome
+	Message   FlexString      `json:"message,omitempty"`
+	ErrorMessage FlexString   `json:"errorMessage,omitempty"` // Human-readable outcome
 	Data      T               `json:"data,omitempty"`      // Endpoint-specific payload
 	ErrorCode FlexString      `json:"errorCode,omitempty"` // Machine-readable code on failure
 	Raw       json.RawMessage `json:"-"`                   // Complete response body
