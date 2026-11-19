@@ -1,7 +1,9 @@
 package definite
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -97,7 +99,17 @@ func (c *Client) CalculatePremium(ctx context.Context, req *CalculatePremiumRequ
 	if err != nil {
 		return nil, err
 	}
-	return decodeEnvelope[*PremiumBreakdown](op, ErrCalculatePremium, "premium calculation failed", body)
+	out, err := decodeEnvelope[*PremiumBreakdown](op, ErrCalculatePremium, "premium calculation failed", body)
+	if err != nil || out.Data != nil || len(bytes.TrimSpace(body)) == 0 {
+		return out, err
+	}
+	// Definite answers with the breakdown itself rather than inside "data".
+	breakdown := &PremiumBreakdown{}
+	if err := json.Unmarshal(body, breakdown); err != nil {
+		return nil, decodeError(op, body, err)
+	}
+	out.Data = breakdown
+	return out, nil
 }
 
 // CheckIntermediary looks up an agent or broker by identification number.
